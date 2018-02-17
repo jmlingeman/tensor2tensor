@@ -32,12 +32,14 @@ class TranslatePubmed(translate.TranslateProblem):
     self.data_file = "pubmed_cleaned.txt"
     self.tag_file = "pubmed_mesh.txt"
     self.vocabulary_file = "pubmed_top10k.txt"
+    self.mesh_vocabulary_file = "mesh_tokens.txt"
     self.vocab_size = 10000
+    self.mesh_vocab_size = 5000
 
 
   @property
   def targeted_vocab_size(self):
-    return self.vocab_size
+    return self.mesh_vocab_size
     # return 2**15  # 8192
 
   @property
@@ -58,9 +60,11 @@ class TranslatePubmed(translate.TranslateProblem):
 
     vocab_filename = os.path.join(self.root_dir, self.vocabulary_file)
     token = text_encoder.TokenTextEncoder(vocab_filename, replace_oov='<UNK>')
+    mesh_vocab_filename = os.path.join(self.root_dir, self.mesh_vocabulary_file)
+    mesh_token = text_encoder.TokenTextEncoder(mesh_vocab_filename, replace_oov='<UNK>')
     return {
       "inputs": token,
-      "targets": token,
+      "targets": mesh_token,
     }
 
   @property
