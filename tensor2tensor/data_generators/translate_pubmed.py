@@ -27,14 +27,14 @@ class TranslatePubmed(translate.TranslateProblem):
 
   def __init__(self, was_reversed=False, was_copy=False):
     super(TranslatePubmed, self).__init__(was_reversed, was_copy)
-    #self.root_dir = '/data/nfs/scratch1/lingeman'
-    self.root_dir = '/home/lingeman/pubmed_ident/debug_data/'
+    self.root_dir = '/mnt/nfs/scratch1/lingeman/'
+    #self.root_dir = '/home/lingeman/pubmed_ident/debug_data/'
     self.data_file = "pubmed_cleaned.txt"
     self.tag_file = "pubmed_mesh.txt"
-    self.vocabulary_file = "pubmed_top10k.txt"
+    self.vocabulary_file = "pubmed_top100000k.txt"
     self.mesh_vocabulary_file = "mesh_tokens.txt"
-    self.vocab_size = 10000
-    self.mesh_vocab_size = 5000
+    self.vocab_size = 100000
+    self.mesh_vocab_size = 28353
 
 
   @property
@@ -52,9 +52,10 @@ class TranslatePubmed(translate.TranslateProblem):
 
     vocab_file = "{}/{}".format(self.root_dir, self.vocabulary_file)
     symbolizer_vocab = text_encoder.TokenTextEncoder(vocab_file, replace_oov='<UNK>')
+    mesh_vocab_filename = os.path.join(self.root_dir, self.mesh_vocabulary_file)
+    mesh_vocab = text_encoder.TokenTextEncoder(mesh_vocab_filename, replace_oov='<UNK>')
 
-    return translate.token_generator(source_path + self.data_file, source_path + self.tag_file,
-                                     symbolizer_vocab, EOS)
+    return translate.bi_vocabs_token_generator(source_path + self.data_file, source_path + self.tag_file, symbolizer_vocab, mesh_vocab, EOS)
 
   def feature_encoders(self, data_dir):
 
