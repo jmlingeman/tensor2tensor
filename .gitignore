@@ -19,3 +19,4 @@ dist/
 
 logs/
 preprocessing/logs/
+preprocessing/password.txt
