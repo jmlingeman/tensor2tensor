@@ -1,0 +1,91 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import os
+import tarfile
+from shutil import copyfile
+
+# Dependency imports
+
+from tensor2tensor.data_generators import generator_utils
+from tensor2tensor.data_generators import problem
+from tensor2tensor.data_generators import text_encoder
+from tensor2tensor.data_generators import translate
+from tensor2tensor.utils import registry
+
+import tensorflow as tf
+
+FLAGS = tf.flags.FLAGS
+
+# End-of-sentence marker.
+EOS = text_encoder.EOS_ID
+
+
+@registry.register_problem
+class TranslatePubmedBioasq(translate.TranslateProblem):
+
+  def __init__(self, was_reversed=False, was_copy=False):
+    super(TranslatePubmedBioasq, self).__init__(was_reversed, was_copy)
+    self.root_dir = '/mnt/nfs/scratch1/lingeman/bioasq_train'
+    #self.root_dir = '/home/lingeman/pubmed_ident/debug_data/'
+    self.data_file = "allMeSH_2018.json.text"
+    self.tag_file = "allMeSH_2018.json.mesh"
+    self.vocabulary_file = "pubmed_top100000.txt"
+    self.mesh_vocabulary_file = "mesh_tokens.txt"
+    self.vocab_size = 100000
+    self.mesh_vocab_size = 28951
+
+
+  @property
+  def targeted_vocab_size(self):
+    return self.mesh_vocab_size
+    # return 2**15  # 8192
+
+  @property
+  def vocab_name(self):
+    return 'vocab.pubmedbioasq'
+
+  @property
+  def source_vocab_name(self):
+     return "{}_source".format(self.vocab_name)
+
+  @property
+  def target_vocab_name(self):
+     return "{}_target".format(self.vocab_name)
+
+  def generator(self, data_dir, tmp_dir, train):
+    tag = "train" if train else "dev"
+    source_path = "{}/{}/".format(self.root_dir, tag)
+
+    vocab_file = "{}/{}".format(self.root_dir, self.vocabulary_file)
+    symbolizer_vocab = text_encoder.TokenTextEncoder(vocab_file, replace_oov='<UNK>')
+    mesh_vocab_filename = os.path.join(self.root_dir, self.mesh_vocabulary_file)
+    mesh_vocab = text_encoder.TokenTextEncoder(mesh_vocab_filename, replace_oov='<UNK>')
+
+    return translate.bi_vocabs_token_generator(source_path + self.data_file, source_path + self.tag_file, symbolizer_vocab, mesh_vocab, EOS)
+
+  def feature_encoders(self, data_dir):
+
+    vocab_filename = os.path.join(self.root_dir, self.vocabulary_file)
+    token = text_encoder.TokenTextEncoder(vocab_filename, replace_oov='<UNK>')
+    mesh_vocab_filename = os.path.join(self.root_dir, self.mesh_vocabulary_file)
+    mesh_token = text_encoder.TokenTextEncoder(mesh_vocab_filename, replace_oov='<UNK>')
+    return {
+      "inputs": token,
+      "targets": mesh_token,
+    }
+
+  @property
+  def input_space_id(self):
+    return problem.SpaceID.EN_TOK
+
+  @property
+  def target_space_id(self):
+    return problem.SpaceID.DE_TOK
+
+  @property
+  def use_subword_tokenizer(self):
+    return False
+
+

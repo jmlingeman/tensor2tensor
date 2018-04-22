@@ -2,17 +2,20 @@ import sys
 import os
 from collections import defaultdict
 from genia_tokenizer import *
+import random
 
 TOPK=100000
-WORK_DIR = "/data/tmp/pubmed_xml/"
-RAW_FILENAME = WORK_DIR + "pubmed_output.txt"
-#RAW_FILENAME = WORK_DIR + "pubmed_output.txt.debug"
-CLEANED_FILENAME = WORK_DIR + "pubmed_cleaned.txt"
-META_FILENAME = WORK_DIR + "pubmed_meta.txt"
-MESH_FILENAME = WORK_DIR + "pubmed_mesh.txt"
-TOKENS_FILENAME = WORK_DIR + "pubmed_top{}k.txt".format(TOPK)
+MINYEAR = 2009
+WORK_DIR = "/mnt/nfs/scratch1/lingeman/"
+TRAIN_DIR = WORK_DIR + "train/"
+DEV_DIR = WORK_DIR + "dev/"
+RAW_FILENAME = "pubmed_output.txt"
+CLEANED_FILENAME = "pubmed_cleaned_MINYEAR-{}.txt".format(MINYEAR)
+META_FILENAME = "pubmed_meta.txt"
+MESH_FILENAME = "pubmed_mesh.txt"
+TOKENS_FILENAME = WORK_DIR + "pubmed_top{}.txt".format(TOPK)
 ALL_MESH_FILENAME = WORK_DIR + "mesh_tokens.txt"
-MINYEAR = 0
+PROP_DEV = 0.05
 
 def clean_data(infile, outfile, mesh_outfile, meta_outfile, minyear):
    # Remove lines with no abstract, title, or mesh terms
@@ -20,10 +23,16 @@ def clean_data(infile, outfile, mesh_outfile, meta_outfile, minyear):
    # Convert tags to single tokens
    # Alphabetical output tags, space sep
    count = 0
-   outfile = open(outfile, 'w')
-   infile = open(infile, 'r')
-   mesh_outfile = open(mesh_outfile, 'w')
-   meta_outfile = open(meta_outfile, 'w')
+   infile = open(WORK_DIR + infile, 'r')
+
+   train_outfile = open(TRAIN_DIR + outfile, 'w')
+   train_mesh_outfile = open(TRAIN_DIR + mesh_outfile, 'w')
+   train_meta_outfile = open(TRAIN_DIR + meta_outfile, 'w')
+
+   dev_outfile = open(DEV_DIR + outfile, 'w')
+   dev_mesh_outfile = open(DEV_DIR + mesh_outfile, 'w')
+   dev_meta_outfile = open(DEV_DIR + meta_outfile, 'w')
+
    for line in infile:
       if count % 100000 == 0:
          print(count)
@@ -36,6 +45,16 @@ def clean_data(infile, outfile, mesh_outfile, meta_outfile, minyear):
          if int(year) < minyear:
             continue
 
+         if random.random() < PROP_DEV:
+            outfile = dev_outfile
+            mesh_outfile = dev_mesh_outfile
+            meta_outfile = dev_meta_outfile
+         else:
+            outfile = train_outfile
+            mesh_outfile = train_mesh_outfile
+            meta_outfile = train_meta_outfile
+
+
          mesh_terms = ["_".join(t.replace(",", "").split(" ")) for t in mesh_terms.split("|")]
          mesh_terms.sort()
          mesh_terms = " ".join(mesh_terms)
@@ -46,17 +65,22 @@ def clean_data(infile, outfile, mesh_outfile, meta_outfile, minyear):
          mesh_outfile.write(mesh_terms + "\n")
          #outstr = "\t".join([year, text, mesh_terms])
          #outfile.write(outstr + "\n")
-      except:
-         print("ERROR: Could not read line", line)
-         print(line.split("\t"))
+      except Exception as e:
+         print("ERROR: Could not process line", line)
+         print(e)
+         print(line)
 
-   mesh_outfile.close()
-   outfile.close()
+   train_mesh_outfile.close()
+   train_outfile.close()
+   train_meta_outfile.close()
+   dev_mesh_outfile.close()
+   dev_outfile.close()
+   dev_meta_outfile.close()
    infile.close()
 
 def topk_vocab(cleaned_infile, mesh_infile, outfile, mesh_outfile, topk=10000):
-   cleaned_infile = open(cleaned_infile, 'r')
-   mesh_infile = open(mesh_infile, 'r')
+   cleaned_infile = open(TRAIN_DIR + cleaned_infile, 'r')
+   mesh_infile = open(TRAIN_DIR + mesh_infile, 'r')
    outfile = open(outfile, 'w')
    mesh_outfile = open(mesh_outfile, 'w')
    reserved_tokens = [("<pad>", -1), ("<EOS>", -1), ("<UNK>", -1), ("<EOT>", -1)]
@@ -80,5 +104,5 @@ def topk_vocab(cleaned_infile, mesh_infile, outfile, mesh_outfile, topk=10000):
    cleaned_infile.close()
    mesh_infile.close()
 
-clean_data(RAW_FILENAME, CLEANED_FILENAME, MESH_FILENAME, META_FILENAME, MINYEAR)
+#clean_data(RAW_FILENAME, CLEANED_FILENAME, MESH_FILENAME, META_FILENAME, MINYEAR)
 topk_vocab(CLEANED_FILENAME, MESH_FILENAME, TOKENS_FILENAME, ALL_MESH_FILENAME, topk=TOPK)
